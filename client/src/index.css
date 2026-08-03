@@ -1,0 +1,121 @@
+:root{
+  --ink:        #050203;
+  --ink-soft:   #1E0D14;
+  --paper:      #F5ECE4;
+  --wine:       #C4315B;
+  --maroon:     #6E1B32;
+  --gold:       #E3A94A;
+  --gold-dim:   rgba(227,169,74,0.35);
+  --cream:      #F3E7E4;
+  --cream-dim:  #C9A0AC;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+html, body, #root{ height:100%; }
+
+body{
+  background:var(--ink);
+  color:var(--cream);
+  font-family:'Space Grotesk', sans-serif;
+}
+
+::selection{ background:var(--wine); color:#fff; }
+
+.app{
+  height:100vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
+
+/* ---------- Header ---------- */
+header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:22px 36px; border-bottom:1px solid var(--gold-dim);
+  background:linear-gradient(180deg, rgba(0,0,0,0.35), transparent);
+}
+.brand{ display:flex; align-items:center; gap:12px; }
+.brand .mark{
+  width:38px; height:38px; border-radius:10px;
+  background:linear-gradient(135deg, var(--wine), var(--maroon) 60%, var(--ink));
+  border:1px solid var(--gold-dim);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.brand .mark svg{ width:20px; height:20px; }
+.brand h1{
+  font-family:'Fraunces', serif; font-weight:600; font-size:1.35rem;
+  background:linear-gradient(90deg, var(--cream), var(--gold));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.brand p{ font-size:0.72rem; color:var(--cream-dim); letter-spacing:0.14em; text-transform:uppercase; margin-top:2px; }
+header .tagline{
+  font-family:'Fraunces', serif; font-style:italic; font-weight:500;
+  color:var(--gold); font-size:0.95rem; max-width:280px; text-align:right; display:none;
+}
+@media (min-width:900px){ header .tagline{ display:block; } }
+
+/* ---------- Layout ---------- */
+.layout{ flex:1; display:grid; grid-template-columns: 340px 1fr; min-height:0; overflow:hidden; }
+@media (max-width:880px){ .layout{ grid-template-columns:1fr; } }
+
+.divider{ height:1px; background:var(--gold-dim); }
+
+.eyebrow{
+  font-family:'IBM Plex Mono', monospace; font-size:0.68rem;
+  letter-spacing:0.16em; text-transform:uppercase; color:var(--gold);
+  display:flex; align-items:center; gap:8px;
+}
+.eyebrow::before{ content:''; width:14px; height:1px; background:var(--gold); }
+
+.status-line{ font-size:0.78rem; color:var(--cream-dim); font-family:'IBM Plex Mono', monospace; min-height:1em; }
+.note{ font-size:0.72rem; color:var(--cream-dim); line-height:1.5; font-style:italic; }
+
+.field{ display:flex; flex-direction:column; gap:8px; }
+.field label{ font-size:0.74rem; color:var(--cream-dim); display:flex; justify-content:space-between; }
+.field label span.val{ color:var(--gold); font-family:'IBM Plex Mono', monospace; }
+select{
+  background:var(--ink-soft); color:var(--cream); border:1px solid var(--gold-dim);
+  border-radius:10px; padding:10px 12px; font-family:'Space Grotesk', sans-serif; font-size:0.85rem; cursor:pointer;
+}
+select:focus{ outline:none; border-color:var(--gold); }
+input[type=range]{ -webkit-appearance:none; width:100%; height:4px; border-radius:2px; background:rgba(227,169,74,0.18); outline:none; }
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:15px; height:15px; border-radius:50%; background:var(--gold); cursor:pointer; border:2px solid var(--ink); }
+input[type=range]::-moz-range-thumb{ width:15px; height:15px; border-radius:50%; background:var(--gold); border:2px solid var(--ink); cursor:pointer; }
+
+.empty{ font-family:'Space Grotesk', sans-serif; color:var(--cream-dim); text-align:center; padding:80px 20px; }
+.empty h2{ font-family:'Fraunces', serif; font-style:italic; font-weight:500; font-size:1.5rem; margin-bottom:10px; color:var(--gold); }
+
+footer{ text-align:center; font-family:'IBM Plex Mono', monospace; font-size:0.68rem; color:var(--cream-dim); padding:14px; letter-spacing:0.06em; border-top:1px solid var(--gold-dim); }
+
+.hidden{ display:none !important; }
+
+
+/* ---------- Custom scrollbars (all panels) ---------- */
+/* Firefox */
+*{
+  scrollbar-width: thin;
+  scrollbar-color: var(--wine) transparent;
+}
+
+/* Chrome / Edge / Safari */
+::-webkit-scrollbar{
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track{
+  background: transparent;
+}
+::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, var(--wine), var(--maroon));
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover{
+  background: linear-gradient(180deg, var(--gold), var(--wine));
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner{
+  background: transparent;
+}

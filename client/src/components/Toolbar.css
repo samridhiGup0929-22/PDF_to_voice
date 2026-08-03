@@ -1,0 +1,19 @@
+.toolbar{ display:flex; align-items:center; gap:14px; padding:18px 34px; border-bottom:1px solid rgba(243,231,228,0.08); flex-wrap:wrap; }
+.pagenav{ display:flex; align-items:center; gap:10px; font-family:'IBM Plex Mono', monospace; font-size:0.8rem; color:var(--cream-dim); }
+.pagenav button{ background:var(--ink-soft); border:1px solid rgba(243,231,228,0.12); color:var(--cream); width:30px; height:30px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.pagenav button:hover:not(:disabled){ border-color:var(--gold); }
+.pagenav button:disabled{ opacity:0.3; cursor:not-allowed; }
+
+.view-tabs{ display:flex; gap:6px; background:var(--ink-soft); padding:4px; border-radius:10px; }
+.view-tabs button{
+  border:none; background:transparent; color:var(--cream-dim); font-family:'Space Grotesk', sans-serif;
+  font-size:0.78rem; font-weight:600; padding:7px 14px; border-radius:7px; cursor:pointer;
+}
+.view-tabs button.active{ background:linear-gradient(135deg, var(--wine), var(--maroon)); color:#fff; }
+.view-tabs button:disabled{ opacity:0.3; cursor:not-allowed; }
+
+
+.translate-status{
+  font-size:0.78rem; color:var(--gold); font-family:'IBM Plex Mono', monospace;
+  text-align:center; padding:0 20px 14px;
+}
