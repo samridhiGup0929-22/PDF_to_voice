@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://pdf-to-voice-b7wy.onrender.com/api/:path*"
+        }
+    ]
+}
