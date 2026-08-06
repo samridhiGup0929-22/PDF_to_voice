@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import GalaxyBackground from './components/GalaxyBackground.jsx';
+// import GalaxyBackground from './components/GalaxyBackground.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import PdfViewer from './components/PdfViewer.jsx';
@@ -20,6 +20,15 @@ export default function App() {
   const pdfDocRef = useRef(null);
   const pausedRef = useRef(false);
   const translatedCacheRef = useRef({}); // key `${pageIdx}_${lang}` -> { status, text, ranges }
+  const animFrameRef = useRef(null);
+  // Anchor for the smooth progress-bar animation: the moment (time, idx)
+  // we last KNEW the true reading position (from an actual onBoundary
+  // event or an optimistic click/seek), plus the active ranges array.
+  // Between real boundary events the rAF loop below interpolates the
+  // fill forward based on an estimated per-word duration, so the bar
+  // glides continuously like a music player instead of jumping only
+  // when a word boundary fires.
+  const segAnchorRef = useRef({ time: 0, idx: 0, ranges: [] });
 
   const speech = useSpeechEngine();
 
@@ -42,8 +51,13 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const hasDoc = pagesText.length > 0;
+
+  useEffect(() => {
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, []);
 
   function updatePaused(v) {
     pausedRef.current = v;
@@ -207,7 +221,47 @@ export default function App() {
     setCurrentItemIdx(idx);
     if (mode === 'translated') translatedPanelRef.current?.highlightIndex(idx);
     else pdfViewerRef.current?.highlightIndex(pageIdx, idx);
-    setProgressPct(Math.round(((idx + 1) / ranges.length) * 100));
+
+    // Re-anchor the smooth animation to this known-true position. This
+    // fires on every real onBoundary event AND on optimistic
+    // click/seek jumps, so the bar always snaps back to the correct
+    // spot and then resumes gliding forward from there.
+    segAnchorRef.current = { time: performance.now(), idx, ranges };
+    setProgressPct(Math.min(100, Math.round((idx / ranges.length) * 100)));
+  }
+
+  // ---------- Smooth (Spotify-style) progress animation ----------
+  function startProgressAnim() {
+    cancelAnimationFrame(animFrameRef.current);
+    let lastPaint = 0;
+    const tick = (now) => {
+      if (!pausedRef.current) {
+        const { time, idx, ranges } = segAnchorRef.current;
+        if (ranges && ranges.length) {
+          const word = ranges[idx];
+          const charLen = word ? Math.max(word.end - word.start, 1) : 5;
+          // Rough chars/sec at 1x rate, scaled by the current speech
+          // rate so faster/slower voices still track reasonably well.
+          const charsPerSec = 13 * (speech.rate || 1);
+          const estDurationMs = (charLen / charsPerSec) * 1000;
+          const frac = estDurationMs > 0 ? Math.min(1, (now - time) / estDurationMs) : 1;
+          const pct = ((idx + frac) / ranges.length) * 100;
+          // Throttle React state updates to ~20fps — plenty smooth
+          // visually, without re-rendering on every animation frame.
+          if (now - lastPaint > 50) {
+            setProgressPct((prev) => (pct > prev ? Math.min(100, pct) : prev));
+            lastPaint = now;
+          }
+        }
+      }
+      animFrameRef.current = requestAnimationFrame(tick);
+    };
+    animFrameRef.current = requestAnimationFrame(tick);
+  }
+
+  function stopProgressAnim() {
+    cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = null;
   }
 
   async function speakFromChar(pageIdx, charStart) {
@@ -225,6 +279,12 @@ export default function App() {
 
     if (!text) { setIsPlaying(false); return; }
     setCurrentPage(pageIdx);
+    // Optimistic highlight/progress: jump straight to the clicked/sought
+    // word now, rather than waiting for the engine's first onboundary
+    // event (which lags behind by the speak() setTimeout + first-word
+    // delay). Without this the slider/highlight briefly snapped back to
+    // wherever it was before, then caught up a moment later.
+    highlightAt(pageIdx, charStart);
 
     let forceVoice, forceLang;
     if (mode === 'translated' && targetLang === 'hindi') {
@@ -240,19 +300,21 @@ export default function App() {
       onEnd: () => {
         if (!pausedRef.current) {
           if (pageIdx < pagesText.length - 1) speakFromChar(pageIdx + 1, 0);
-          else { setIsPlaying(false); }
+          else { setIsPlaying(false); stopProgressAnim(); }
         }
       },
-      onError: () => setIsPlaying(false)
+      onError: () => { setIsPlaying(false); stopProgressAnim(); }
     });
     setIsPlaying(true);
     updatePaused(false);
+    startProgressAnim();
   }
 
   function stopSpeaking() {
     speech.cancel();
     setIsPlaying(false);
     updatePaused(false);
+    stopProgressAnim();
     pdfViewerRef.current?.clearHighlight();
     translatedPanelRef.current?.clearHighlight();
   }
@@ -260,30 +322,28 @@ export default function App() {
   function handlePlayPause() {
     if (!pagesText.length) return;
     if (!isPlaying) speakFromChar(viewingPage, 0);
-    else if (isPlaying && !isPaused) { speech.pause(); updatePaused(true); }
-    else if (isPaused) { speech.resume(); updatePaused(false); }
-  }
-
-  function handleSeekBack() {
-    const ranges = getActiveRanges(currentPage);
-    if (!ranges.length) return;
-    if (currentItemIdx > 0) {
-      speakFromChar(currentPage, ranges[currentItemIdx - 1].start);
-    } else if (currentPage > 0) {
-      const prev = getActiveRanges(currentPage - 1);
-      speakFromChar(currentPage - 1, prev.length ? prev[prev.length - 1].start : 0);
+    else if (isPlaying && !isPaused) {
+      speech.pause();
+      updatePaused(true);
+      stopProgressAnim(); // freeze the bar exactly where it is
+    } else if (isPaused) {
+      speech.resume();
+      updatePaused(false);
+      // Re-anchor to "now" at the current word so the glide resumes
+      // smoothly instead of jumping using a stale, paused-over timestamp.
+      const ranges = getActiveRanges(currentPage);
+      segAnchorRef.current = { time: performance.now(), idx: currentItemIdx, ranges };
+      startProgressAnim();
     }
   }
 
-  function handleSeekFwd() {
-    const ranges = getActiveRanges(currentPage);
-    if (!ranges.length) return;
-    if (currentItemIdx < ranges.length - 1) {
-      speakFromChar(currentPage, ranges[currentItemIdx + 1].start);
-    } else if (currentPage < pagesText.length - 1) {
-      speakFromChar(currentPage + 1, 0);
-    }
-  }
+  function handleProgressSeek(ratio) {
+  const pageForSeek = isPlaying || isPaused ? currentPage : viewingPage;
+  const ranges = getActiveRanges(pageForSeek);
+  if (!ranges.length) return;
+  const idx = Math.min(ranges.length - 1, Math.max(0, Math.round(ratio * (ranges.length - 1))));
+  speakFromChar(pageForSeek, ranges[idx].start);
+}
 
   function handleWordClickOriginal(pageIdx, charStart) {
     speakFromChar(pageIdx, charStart);
@@ -320,9 +380,10 @@ export default function App() {
 
   return (
     <div className="app">
-      <GalaxyBackground />
-
       <header>
+        <button className="hamburger-btn" aria-label="Open menu" onClick={() => setSidebarOpen(true)}>
+          <span />
+        </button>
         <div className="brand">
           <div className="mark">
             <svg viewBox="0 0 24 24" fill="none">
@@ -338,8 +399,12 @@ export default function App() {
         <div className="tagline">"Every page has a voice — you just have to press play."</div>
       </header>
 
+      <div className={`sidebar-backdrop${sidebarOpen ? ' show' : ''}`} onClick={() => setSidebarOpen(false)} />
+
       <div className="layout">
         <Sidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
           fileInfo={fileInfo}
           statusMessage={statusMessage}
           progressMessage={progressMessage}
@@ -395,12 +460,11 @@ export default function App() {
         progressPct={progressPct}
         controlsEnabled={hasDoc}
         seekEnabled={isPlaying}
-        onPlayPause={handlePlayPause}
         onStop={stopSpeaking}
+        onPlayPause={handlePlayPause}
         onPrevPage={() => gotoPage(-1)}
         onNextPage={() => gotoPage(1)}
-        onSeekBack={handleSeekBack}
-        onSeekFwd={handleSeekFwd}
+        onProgressSeek={handleProgressSeek}
       />
 
       <footer>PAPERWAVES · PDF stays in your browser · translation goes through your own backend</footer>

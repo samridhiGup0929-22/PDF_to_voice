@@ -12,6 +12,13 @@ function scoreVoice(v) {
 /**
  * Wraps the browser's SpeechSynthesis API: voice discovery/scoring,
  * rate/pitch/volume state, and a speak() helper with boundary callbacks.
+ *
+ * IMPORTANT: rate/pitch/volume/voiceIndex are mirrored into refs. The
+ * speak() function reads from those refs (not from React state) so that
+ * a slider change followed immediately by a restart (setRate(v) then
+ * speak() in the same tick) always uses the NEW value — React state
+ * updates are async, so reading `rate` directly inside a memoized
+ * callback would still see the previous render's value.
  */
 export default function useSpeechEngine() {
   const [voices, setVoices] = useState([]);
@@ -19,24 +26,12 @@ export default function useSpeechEngine() {
   const [rate, setRateState] = useState(1);
   const [pitch, setPitchState] = useState(1);
   const [volume, setVolumeState] = useState(1);
-  const rawVoices = useRef([]);
 
-  // Refs mirror the state above. `speak()` reads from these instead of
-  // state so it always sees the LATEST value even when called in the
-  // same tick as a setState call — e.g. dragging the rate slider fires
-  // setRate(v) then immediately restarts playback; state hasn't
-  // committed yet at that point, so speak() was previously using the
-  // old rate. Refs update synchronously, so this fixes rate/pitch/
-  // volume "not applying" until the next play.
+  const rawVoices = useRef([]);
   const voiceIndexRef = useRef(0);
   const rateRef = useRef(1);
   const pitchRef = useRef(1);
   const volumeRef = useRef(1);
-
-  const setVoiceIndex = useCallback((v) => { voiceIndexRef.current = v; setVoiceIndexState(v); }, []);
-  const setRate = useCallback((v) => { rateRef.current = v; setRateState(v); }, []);
-  const setPitch = useCallback((v) => { pitchRef.current = v; setPitchState(v); }, []);
-  const setVolume = useCallback((v) => { volumeRef.current = v; setVolumeState(v); }, []);
 
   useEffect(() => {
     function load() {
@@ -48,12 +43,23 @@ export default function useSpeechEngine() {
       setVoices(tagged);
       const enTagged = tagged.filter((t) => t.lang.startsWith('en'));
       const preferred = (enTagged.length ? enTagged : tagged)[0];
-      if (preferred) setVoiceIndex(preferred.i);
+      if (preferred) {
+        voiceIndexRef.current = preferred.i;
+        setVoiceIndexState(preferred.i);
+      }
     }
     window.speechSynthesis.onvoiceschanged = load;
     load();
     return () => { window.speechSynthesis.onvoiceschanged = null; };
-  }, [setVoiceIndex]);
+  }, []);
+
+  const setVoiceIndex = useCallback((idx) => {
+    voiceIndexRef.current = Number(idx);
+    setVoiceIndexState(Number(idx));
+  }, []);
+  const setRate = useCallback((v) => { rateRef.current = v; setRateState(v); }, []);
+  const setPitch = useCallback((v) => { pitchRef.current = v; setPitchState(v); }, []);
+  const setVolume = useCallback((v) => { volumeRef.current = v; setVolumeState(v); }, []);
 
   const findVoiceByLangPrefix = useCallback((prefix) => {
     return rawVoices.current.find((v) => v.lang.toLowerCase().startsWith(prefix));
@@ -72,18 +78,11 @@ export default function useSpeechEngine() {
       if (e.name === 'word' || e.name === undefined) onBoundary?.(charOffset + e.charIndex);
     };
     utter.onend = () => onEnd?.();
-    utter.onerror = (e) => {
-      // "canceled" / "interrupted" fire whenever we deliberately call
-      // cancel() to restart speech with new rate/pitch/volume — these
-      // are NOT real errors, just the old utterance being cut off on
-      // purpose. Treating them as errors was flipping isPlaying to
-      // false after the very first restart, which then blocked every
-      // later slider change from restarting speech at all.
-      if (e.error === 'canceled' || e.error === 'interrupted') return;
-      onError?.();
-    };
-    window.speechSynthesis.speak(utter);
-  }, []); // refs mean this never needs to be recreated on slider changes
+    utter.onerror = () => onError?.();
+    // Chrome bug workaround: calling speak() immediately after cancel() can
+    // silently no-op. A tiny delay makes the new utterance start reliably.
+    setTimeout(() => window.speechSynthesis.speak(utter), 50);
+  }, []); // stable identity — always reads the latest values via refs
 
   const pause = useCallback(() => window.speechSynthesis.pause(), []);
   const resume = useCallback(() => window.speechSynthesis.resume(), []);

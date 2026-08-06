@@ -5,12 +5,12 @@
 .pdf-scroll{ display:flex; flex-direction:column; align-items:center; gap:22px; }
 .pdf-page{ position:relative; background:#fff; box-shadow:0 20px 50px rgba(0,0,0,0.4); border-radius:3px; overflow:hidden; }
 .text-overlay{ position:absolute; inset:0; pointer-events:none; }
-.hl-rect{ position:absolute; background:transparent; border-radius:3px; transition:background .15s, box-shadow .15s; cursor:pointer; pointer-events:auto; }
-.hl-rect:hover{ background:rgba(227,169,74,0.18); }
-.hl-rect.active{ background:rgba(196,49,91,0.55); box-shadow:0 0 0 2px rgba(196,49,91,0.25); }
+.hl-rect{ position:absolute; background:transparent; border-radius:3px; transition:box-shadow .15s; cursor:pointer; pointer-events:auto; }
+.hl-rect:hover{ box-shadow:0 0 0 2px var(--accent-soft); }
+.hl-rect.active{ box-shadow:0 0 0 2px var(--accent); }
 
 .paper{
-  background:linear-gradient(160deg, rgba(110,27,50,0.28), rgba(11,5,7,0.55));
+  background:var(--paper-2);
   backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
   color:var(--cream); width:min(720px, 90%); margin:0 auto;
   border:1px solid rgba(227,169,74,0.18);
@@ -18,5 +18,6 @@
   box-shadow:0 20px 50px rgba(0,0,0,0.4);
   font-family:'Fraunces', serif; font-weight:400; line-height:1.9; font-size:1.14rem;
 }
-.word{ transition:background .12s, color .12s; border-radius:3px; padding:0 1px; cursor:pointer; }
-.word.active{ background:var(--wine); color:#fff; }
+.word{ transition:box-shadow .12s; border-radius:3px; padding:0 1px; cursor:pointer; }
+.word:hover{ box-shadow:0 0 0 2px var(--accent-soft); }
+.word.active{ box-shadow:0 0 0 2px var(--accent); }

@@ -144,7 +144,12 @@ const PdfViewer = forwardRef(function PdfViewer({ hidden, hasContent, onViewingP
             rect.style.top = `${w.y0 * mapY}px`;
             rect.style.width = `${Math.max((w.x1 - w.x0) * mapX, 2)}px`;
             rect.style.height = `${Math.max((w.y1 - w.y0) * mapY, 2)}px`;
-            rect.addEventListener('click', () => onWordClick?.(pageIdx, start));
+            rect.addEventListener('click', () => {
+              if (activeRectRef.current) activeRectRef.current.classList.remove('active');
+              rect.classList.add('active');
+              activeRectRef.current = rect;
+              onWordClick?.(pageIdx, start);
+            });
             overlay.appendChild(rect);
 
             ranges.push({ start, end, el: rect });
