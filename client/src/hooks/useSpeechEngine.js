@@ -21,6 +21,7 @@ function scoreVoice(v) {
  * callback would still see the previous render's value.
  */
 export default function useSpeechEngine() {
+  const speakTimerRef = useRef(null);
   const [voices, setVoices] = useState([]);
   const [voiceIndex, setVoiceIndexState] = useState(0);
   const [rate, setRateState] = useState(1);
@@ -81,13 +82,19 @@ export default function useSpeechEngine() {
     utter.onerror = () => onError?.();
     // Chrome bug workaround: calling speak() immediately after cancel() can
     // silently no-op. A tiny delay makes the new utterance start reliably.
-    setTimeout(() => window.speechSynthesis.speak(utter), 50);
+    clearTimeout(speakTimerRef.current);
+
+    speakTimerRef.current = setTimeout(() => {
+      window.speechSynthesis.speak(utter);
+    }, 50);
   }, []); // stable identity — always reads the latest values via refs
 
   const pause = useCallback(() => window.speechSynthesis.pause(), []);
   const resume = useCallback(() => window.speechSynthesis.resume(), []);
-  const cancel = useCallback(() => window.speechSynthesis.cancel(), []);
-
+const cancel = useCallback(() => {
+  clearTimeout(speakTimerRef.current);
+  window.speechSynthesis.cancel();
+}, []);
   return {
     voices, voiceIndex, setVoiceIndex,
     rate, setRate, pitch, setPitch, volume, setVolume,

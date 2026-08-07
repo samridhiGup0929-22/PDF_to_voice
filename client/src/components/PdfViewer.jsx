@@ -186,8 +186,16 @@ const PdfViewer = forwardRef(function PdfViewer({ hidden, hasContent, onViewingP
             rect.style.top = `${top}px`;
             rect.style.width = `${width}px`;
             rect.style.height = `${fontHeight * 1.15}px`;
-            rect.addEventListener('click', () => onWordClick?.(pageIdx, start));
-            overlay.appendChild(rect);
+            rect.addEventListener('click', () => {
+              if (activeRectRef.current) {
+                activeRectRef.current.classList.remove('active');
+              }
+
+              rect.classList.add('active');
+              activeRectRef.current = rect;
+
+              onWordClick?.(pageIdx, start);
+            }); overlay.appendChild(rect);
 
             ranges.push({ start, end, el: rect });
           });
@@ -226,7 +234,16 @@ const PdfViewer = forwardRef(function PdfViewer({ hidden, hasContent, onViewingP
                 rect.style.top = `${top}px`;
                 rect.style.width = `${width}px`;
                 rect.style.height = `${height}px`;
-                rect.addEventListener('click', () => onWordClick?.(pageIdx, start));
+                rect.addEventListener('click', () => {
+                  if (activeRectRef.current) {
+                    activeRectRef.current.classList.remove('active');
+                  }
+
+                  rect.classList.add('active');
+                  activeRectRef.current = rect;
+
+                  onWordClick?.(pageIdx, start);
+                });
                 overlay.appendChild(rect);
 
                 ranges.push({ start, end, el: rect });

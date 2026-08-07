@@ -63,7 +63,7 @@ export default function Dock({
         <button
           className="btn-round"
           title="Stop"
-          disabled={!controlsEnabled || (!isPlaying && !isPaused)}
+          disabled={!controlsEnabled}
           onClick={onStop}
         >
           <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="1.5" /></svg>

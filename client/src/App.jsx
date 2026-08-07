@@ -231,6 +231,13 @@ export default function App() {
   }
 
   // ---------- Smooth (Spotify-style) progress animation ----------
+  // Anchored by an estimated CHARACTER position, not just the current
+  // word. Real onBoundary events (via highlightAt) correct/re-anchor it
+  // whenever they arrive, but the bar keeps gliding forward continuously
+  // between them by extrapolating from the anchor — so even if the
+  // browser's boundary events are sparse or stop firing altogether (a
+  // known quirk on some voices/platforms), the slider still moves the
+  // whole time speech is playing, instead of freezing after one word.
   function startProgressAnim() {
     cancelAnimationFrame(animFrameRef.current);
     let lastPaint = 0;
@@ -238,18 +245,21 @@ export default function App() {
       if (!pausedRef.current) {
         const { time, idx, ranges } = segAnchorRef.current;
         if (ranges && ranges.length) {
-          const word = ranges[idx];
-          const charLen = word ? Math.max(word.end - word.start, 1) : 5;
+          const totalChars = Math.max(ranges[ranges.length - 1].end, 1);
+          const anchorChar = ranges[idx]?.start ?? 0;
           // Rough chars/sec at 1x rate, scaled by the current speech
           // rate so faster/slower voices still track reasonably well.
           const charsPerSec = 13 * (speech.rate || 1);
-          const estDurationMs = (charLen / charsPerSec) * 1000;
-          const frac = estDurationMs > 0 ? Math.min(1, (now - time) / estDurationMs) : 1;
-          const pct = ((idx + frac) / ranges.length) * 100;
+          const elapsedChars = ((now - time) / 1000) * charsPerSec;
+          const estCharPos = Math.min(totalChars, anchorChar + elapsedChars);
+          // Cap the estimate just short of 100% while gliding — actual
+          // completion is driven by onEnd, not the estimate, so it never
+          // visually "finishes" ahead of the real audio.
+          const pct = Math.min(99, (estCharPos / totalChars) * 100);
           // Throttle React state updates to ~20fps — plenty smooth
           // visually, without re-rendering on every animation frame.
           if (now - lastPaint > 50) {
-            setProgressPct((prev) => (pct > prev ? Math.min(100, pct) : prev));
+            setProgressPct((prev) => (pct > prev ? pct : prev));
             lastPaint = now;
           }
         }
@@ -338,12 +348,23 @@ export default function App() {
   }
 
   function handleProgressSeek(ratio) {
-  const pageForSeek = isPlaying || isPaused ? currentPage : viewingPage;
-  const ranges = getActiveRanges(pageForSeek);
-  if (!ranges.length) return;
-  const idx = Math.min(ranges.length - 1, Math.max(0, Math.round(ratio * (ranges.length - 1))));
-  speakFromChar(pageForSeek, ranges[idx].start);
-}
+    const pageForSeek = isPlaying || isPaused ? currentPage : viewingPage;
+    const ranges = getActiveRanges(pageForSeek);
+    if (!ranges.length) return;
+
+    const idx = Math.min(
+      ranges.length - 1,
+      Math.max(0, Math.round(ratio * (ranges.length - 1)))
+    );
+
+    // speakFromChar -> speech.speak() already cancels whatever's currently
+    // speaking (with a token guard so the cancelled utterance's stale
+    // onend can't race the new one and hijack playback) — no need to
+    // cancel a second time here.
+    setIsPlaying(true);
+    updatePaused(false);
+    speakFromChar(pageForSeek, ranges[idx].start);
+  }
 
   function handleWordClickOriginal(pageIdx, charStart) {
     speakFromChar(pageIdx, charStart);
