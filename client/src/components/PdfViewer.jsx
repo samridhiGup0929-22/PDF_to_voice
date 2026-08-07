@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useEffect, useState} from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { createWorker } from 'tesseract.js';
 import './PdfViewer.css';
@@ -21,6 +21,8 @@ function multiplyMatrices(m1, m2) {
 }
 
 const PdfViewer = forwardRef(function PdfViewer({ hidden, hasContent, onViewingPageChange, onWordClick, onPageProgress }, ref) {
+  const fileInputRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
   const scrollRef = useRef(null);
   const pageWrapEls = useRef([]);
   const rangesByPage = useRef([]);
@@ -356,7 +358,31 @@ const PdfViewer = forwardRef(function PdfViewer({ hidden, hasContent, onViewingP
       {!hasContent && (
         <div className="empty">
           <h2>Nothing to read yet</h2>
-          <p>Upload a PDF on the left — the real pages will render here,<br />scroll through them like a normal PDF, and I'll read them aloud.</p>
+          <div
+            className={`dropzone${dragging ? ' drag' : ''}`}
+            style={{ maxWidth: 420, margin: '18px auto 0' }}
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              if (e.dataTransfer.files.length) onFileSelected?.(e.dataTransfer.files[0]);
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => e.target.files.length && onFileSelected?.(e.target.files[0])}
+            />
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v13m0-13 4.5 4.5M12 3 7.5 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            <p className="title">Drop a PDF, or tap to browse</p>
+            <p className="sub">From your device — nothing is uploaded anywhere</p>
+          </div>
         </div>
       )}
       <div className="pdf-scroll" ref={scrollRef} />

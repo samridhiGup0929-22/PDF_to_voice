@@ -456,6 +456,7 @@ export default function App() {
           />
 
           <PdfViewer
+            onFileSelected={handleFileSelected}
             ref={pdfViewerRef}
             hidden={mode !== 'original'}
             hasContent={hasDoc}
