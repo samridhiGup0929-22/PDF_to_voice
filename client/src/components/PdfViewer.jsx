@@ -20,7 +20,7 @@ function multiplyMatrices(m1, m2) {
   ];
 }
 
-const PdfViewer = forwardRef(function PdfViewer({ hidden, hasContent, onViewingPageChange, onWordClick, onPageProgress }, ref) {
+const PdfViewer = forwardRef(function PdfViewer({ hidden, hasContent, onViewingPageChange, onWordClick, onPageProgress, onFileSelected }, ref) {
   const fileInputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const scrollRef = useRef(null);
