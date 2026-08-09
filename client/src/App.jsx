@@ -9,6 +9,7 @@ import Dock from './components/Dock.jsx';
 import useSpeechEngine from './hooks/useSpeechEngine.js';
 import { translateText } from './utils/api.js';
 import { chunkWords } from './utils/textChunk.js';
+import { ThemeProvider, ThemeToggle } from './hooks/DarkLight.jsx';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -400,7 +401,7 @@ export default function App() {
   const translatedEntry = translatedCache[`${viewingPage}_${targetLang}`];
 
   return (
-    <div className="app">
+    <div className={`"app"`} >
       <header>
         <button className="hamburger-btn" aria-label="Open menu" onClick={() => setSidebarOpen(true)}>
           <span />
@@ -418,6 +419,10 @@ export default function App() {
           </div>
         </div>
         <div className="tagline">"Every page has a voice — you just have to press play."</div>
+        <ThemeProvider>
+          <ThemeToggle/>
+        </ThemeProvider>
+        
       </header>
 
       <div className={`sidebar-backdrop${sidebarOpen ? ' show' : ''}`} onClick={() => setSidebarOpen(false)} />
@@ -456,7 +461,6 @@ export default function App() {
           />
 
           <PdfViewer
-            onFileSelected={handleFileSelected}
             ref={pdfViewerRef}
             hidden={mode !== 'original'}
             hasContent={hasDoc}
