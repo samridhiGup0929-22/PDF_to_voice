@@ -24,17 +24,17 @@
 
 /* ---------- Dropzone ---------- */
 .dropzone{
-  border:1.5px dashed var(--border);
+  border:1.5px dashed var(--accent);
   border-radius:16px;
   padding:32px 18px;
   text-align:center;
   cursor:pointer;
-  background:#fff;
+  background:#F7EDE6;
   transition:0.18s ease;
 }
 .dropzone:hover, .dropzone.drag{
   border-color:var(--accent);
-  background:var(--accent-soft);
+  background:#F7EDE6;
 }
 .dropzone input{ display:none; }
 .dropzone svg{
@@ -52,6 +52,16 @@
 .dropzone .sub{
   font-size:0.72rem;
   color:var(--muted);
+}
+
+[data-theme="dark"] .dropzone{
+  background:#132019;
+  border-color:#2FBE85;
+}
+[data-theme="dark"] .dropzone:hover,
+[data-theme="dark"] .dropzone.drag{
+  background:#132019;
+  border-color:#2FBE85;
 }
 
 /* ---------- File card ---------- */
