@@ -35,6 +35,73 @@
   color-scheme: dark;
 }
 
+
+[data-theme="dark"] .dock{
+  background:#1F8F63;
+  border-color:rgba(255,255,255,0.12);
+}
+[data-theme="dark"] .dock-meta .titleline{
+  color:#EAF3EC;
+}
+[data-theme="dark"] .waveform span{
+  background:#EAF3EC;
+}
+[data-theme="dark"] .transport button{
+  background:#0E1613;
+  color:#EAF3EC;
+}
+[data-theme="dark"] .btn-play{
+  background:#0A100D;
+  color:#EAF3EC;
+}
+[data-theme="dark"] .btn-round{
+  background:rgba(0,0,0,0.25);
+  border-color:rgba(234,243,236,0.4);
+  color:#EAF3EC;
+}
+[data-theme="dark"] .file-card{
+  background:#132019;
+  border-color:#2FBE85;
+}
+[data-theme="dark"] .file-card .x{
+  background:#0E1613;
+  border-color:#2FBE85;
+  color:#EAF3EC;
+}
+[data-theme="dark"] .fname{
+  color:#EAF3EC;
+}
+[data-theme="dark"] .fmeta{
+  color:#8FA79A;
+}
+
+[data-theme="dark"] select{
+  background:#132019;
+  border-color:#2FBE85;
+  color:#EAF3EC;
+}
+[data-theme="dark"] select option{
+  background:#132019;
+  color:#EAF3EC;
+}
+[data-theme="dark"] .side-close{
+  background:#132019;
+  border-color:#2FBE85;
+  color:#EAF3EC;
+}
+[data-theme="dark"] .pagenav button{
+  background:#132019;
+  border-color:#2FBE85;
+  color:#EAF3EC;
+}
+[data-theme="dark"] .pagenav button:disabled{
+  opacity:0.3;
+}
+[data-theme="dark"] .pagenav button:hover:not(:disabled){
+  border-color:#2FBE85;
+  color:#5FD6A2;
+}
+
 *{ box-sizing:border-box; margin:0; padding:0; }
 html, body, #root{ height:100%; }
 
