@@ -6,6 +6,7 @@ import Toolbar from './components/Toolbar.jsx';
 import PdfViewer from './components/PdfViewer.jsx';
 import TranslatedPanel from './components/TranslatedPanel.jsx';
 import Dock from './components/Dock.jsx';
+import ChatBot from './components/ChatBot.jsx';
 import useSpeechEngine from './hooks/useSpeechEngine.js';
 import { translateText } from './utils/api.js';
 import { chunkWords } from './utils/textChunk.js';
@@ -492,6 +493,12 @@ export default function App() {
         onPrevPage={() => gotoPage(-1)}
         onNextPage={() => gotoPage(1)}
         onProgressSeek={handleProgressSeek}
+      />
+
+      <ChatBot
+        hasDoc={hasDoc}
+        docName={fileInfo?.name}
+        docContext={pagesText.join('\n\n')}
       />
 
       <footer>PAPERWAVES · PDF stays in your browser · translation goes through your own backend</footer>

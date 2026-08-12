@@ -37,3 +37,32 @@ export async function translateText(text, targetLang) {
 
   return data.translatedText; // server returns "translatedText" — previously read as "translated"
 }
+
+/**
+ * Calls our /api/chat backend (see /server/routes/chat.js), which holds
+ * the Sarvam API key server-side. `history` is the running conversation
+ * so far as [{ role: 'user'|'model', text }], and `context` is the PDF
+ * text to ground answers in.
+ */
+export async function sendChatMessage(message, history, context, docName) {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message, history, context, docName }),
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Chat request failed (${res.status}). Is the backend running?`);
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || `Chat request failed (${res.status})`);
+  }
+
+  return data.reply;
+}
