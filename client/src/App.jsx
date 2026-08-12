@@ -10,6 +10,7 @@ import ChatBot from './components/ChatBot.jsx';
 import useSpeechEngine from './hooks/useSpeechEngine.js';
 import { translateText } from './utils/api.js';
 import { chunkWords } from './utils/textChunk.js';
+import { buildChunks, buildIndex, searchChunks } from './utils/ragSearch.js';
 import { ThemeProvider, ThemeToggle } from './hooks/DarkLight.jsx';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -31,6 +32,10 @@ export default function App() {
   // glides continuously like a music player instead of jumping only
   // when a word boundary fires.
   const segAnchorRef = useRef({ time: 0, idx: 0, ranges: [] });
+  // RAG index for the chatbot — built once per loaded PDF (see
+  // handleFileSelected/clearFile) so each chat message doesn't re-chunk
+  // the whole document. { chunks: [{pageIdx, text}], index: {...} } | null
+  const ragRef = useRef(null);
 
   const speech = useSpeechEngine();
 
@@ -98,6 +103,11 @@ export default function App() {
       setPageCount(result.pageCount);
       setPagesText(result.pagesText);
       setRangesMeta(result.ranges);
+      // RAG: chunk the freshly-extracted text and index it once, so the
+      // chatbot can retrieve relevant passages per-question instead of
+      // stuffing the whole document into every prompt.
+      const chunks = buildChunks(result.pagesText);
+      ragRef.current = { chunks, index: buildIndex(chunks) };
       translatedCacheRef.current = {};
       setTranslatedCache({});
       setMode('original');
@@ -115,6 +125,7 @@ export default function App() {
     stopSpeaking();
     pdfViewerRef.current?.clear();
     pdfDocRef.current = null;
+    ragRef.current = null;
     setFileInfo(null);
     setPagesText([]);
     setRangesMeta([]);
@@ -401,6 +412,34 @@ export default function App() {
 
   const translatedEntry = translatedCache[`${viewingPage}_${targetLang}`];
 
+  // RAG retrieval for the chatbot. Two layers:
+  //  1. The page the user is currently viewing is ALWAYS included in
+  //     full — TF-IDF alone can lose to a single short query word
+  //     (e.g. "Sampling") on a large multi-unit PDF where that word
+  //     also appears elsewhere, so relying on scoring alone let the
+  //     bot miss content that's literally on-screen.
+  //  2. On top of that, the top TF-IDF matches from the *rest* of the
+  //     document are added, so questions about other pages still work.
+  function getChatContext(query) {
+    const parts = [];
+
+    const currentPageText = (pagesText[viewingPage] || '').trim();
+    if (currentPageText) {
+      parts.push(`[Page ${viewingPage + 1} — currently on screen]\n${currentPageText.slice(0, 6000)}`);
+    }
+
+    const rag = ragRef.current;
+    if (rag && rag.chunks.length) {
+      const top = searchChunks(query, rag.chunks, rag.index, 5);
+      for (const c of top) {
+        if (c.pageIdx === viewingPage) continue; // already included in full above
+        parts.push(`[Page ${c.pageIdx + 1}]\n${c.text}`);
+      }
+    }
+
+    return parts.join('\n\n---\n\n');
+  }
+
   return (
     <div className={`"app"`} >
       <header>
@@ -498,7 +537,7 @@ export default function App() {
       <ChatBot
         hasDoc={hasDoc}
         docName={fileInfo?.name}
-        docContext={pagesText.join('\n\n')}
+        getContext={getChatContext}
       />
 
       <footer>PAPERWAVES · PDF stays in your browser · translation goes through your own backend</footer>

@@ -6,15 +6,17 @@ const router = Router();
 // Chatbot backed by Sarvam AI's Chat Completions API — same key/account
 // as the /api/translate route already uses, no separate signup needed.
 // https://docs.sarvam.ai/api-reference/chat/chat-completions
-// The client sends the document's text (or the current page's text,
-// trimmed) as `context`, plus the running message history, and we
-// forward it all as a system message so answers stay grounded in the
-// document instead of hallucinating.
+//
+// `context` here is NOT the whole PDF — the client does lightweight RAG
+// (client/src/utils/ragSearch.js: TF-IDF chunking + retrieval) and sends
+// just the few passages relevant to the current question, tagged with
+// their page numbers. We forward that as a system message so answers
+// stay grounded in the document instead of hallucinating.
 // ---------------------------------------------------------------------
 
 const SARVAM_CHAT_URL = 'https://api.sarvam.ai/v1/chat/completions';
 const MODEL = 'sarvam-105b';
-const MAX_CONTEXT_CHARS = 12000; // keep prompt size sane for long PDFs
+const MAX_CONTEXT_CHARS = 16000; // room for the full current page + a few extra chunks
 const MAX_HISTORY_TURNS = 10;
 
 // POST /api/chat  { message: string, history?: [{role:'user'|'model', text}], context?: string, docName?: string }
@@ -31,8 +33,8 @@ router.post('/', async (req, res) => {
     const trimmedContext = (context || '').slice(0, MAX_CONTEXT_CHARS);
 
     const systemPrompt = trimmedContext
-        ? `You are Paperwaves' in-app assistant, helping the user understand a PDF they have open${docName ? ` called "${docName}"` : ''}. Answer using the document text below whenever it's relevant, and say clearly when something isn't covered by the document. Keep answers concise and conversational.\n\n--- DOCUMENT TEXT (may be truncated) ---\n${trimmedContext}`
-        : `You are Paperwaves' in-app assistant. No PDF is loaded yet, so let the user know you'll be able to answer questions about their document once they open one, but still help with general questions in the meantime. Keep answers concise.`;
+        ? `You are Paperwaves' in-app assistant, helping the user understand a PDF they have open${docName ? ` called "${docName}"` : ''}. Below are passages from the document — the page the user is currently viewing (included in full) plus a few other passages retrieved as relevant to their question, each tagged with its page number. Treat the currently-viewed page as the most likely source of the answer. Give a thorough, well-explained answer: cover the relevant definitions, steps, or reasoning from the passages in your own words, not just a one-line summary, and cite the page number when it helps. If a passage genuinely doesn't cover the question, say so plainly rather than guessing.\n\n--- DOCUMENT PASSAGES ---\n${trimmedContext}`
+        : `You are Paperwaves' in-app assistant. No PDF is loaded yet, so let the user know you'll be able to answer questions about their document once they open one, but still help with general questions in the meantime. Give thorough, well-explained answers.`;
 
     // Sarvam's chat API uses OpenAI-style roles ('user' / 'assistant'), so
     // map our stored 'model' role (kept for parity with the client state) to 'assistant'.
@@ -60,7 +62,7 @@ router.post('/', async (req, res) => {
                 model: MODEL,
                 messages,
                 temperature: 0.4,
-                max_tokens: 1024,
+                max_tokens: 2048,
                 reasoning_effort: null
             })
         });

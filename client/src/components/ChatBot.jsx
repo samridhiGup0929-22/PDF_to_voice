@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { sendChatMessage } from '../utils/api.js';
 import './ChatBot.css';
 
-export default function ChatBot({ docName, docContext, hasDoc }) {
+export default function ChatBot({ docName, getContext, hasDoc }) {
     const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState([]); // [{role:'user'|'model', text}]
     const [input, setInput] = useState('');
@@ -33,10 +33,13 @@ export default function ChatBot({ docName, docContext, hasDoc }) {
         setError('');
 
         try {
+            // RAG retrieval: pull only the chunks relevant to *this*
+            // question instead of sending the whole document every time.
+            const context = getContext ? getContext(text) : '';
             const reply = await sendChatMessage(
                 text,
                 nextMessages.map(({ role, text }) => ({ role, text })),
-                docContext,
+                context,
                 docName
             );
             setMessages((cur) => [...cur, { role: 'model', text: reply }]);
