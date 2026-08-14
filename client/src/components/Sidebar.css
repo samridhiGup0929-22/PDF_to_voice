@@ -29,12 +29,12 @@
   padding:32px 18px;
   text-align:center;
   cursor:pointer;
-  background:#F7EDE6;
+  background:#D3E9FB;
   transition:0.18s ease;
 }
 .dropzone:hover, .dropzone.drag{
   border-color:var(--accent);
-  background:#F7EDE6;
+  background:#D3E9FB;
 }
 .dropzone input{ display:none; }
 .dropzone svg{
@@ -55,13 +55,13 @@
 }
 
 [data-theme="dark"] .dropzone{
-  background:#132019;
-  border-color:#2FBE85;
+  background:#10192B;
+  border-color:#1D4ED8;
 }
 [data-theme="dark"] .dropzone:hover,
 [data-theme="dark"] .dropzone.drag{
-  background:#132019;
-  border-color:#2FBE85;
+  background:#10192B;
+  border-color:#1D4ED8;
 }
 
 /* ---------- File card ---------- */
