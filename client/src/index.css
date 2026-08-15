@@ -112,6 +112,7 @@ html,
 body,
 #root {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -275,8 +276,9 @@ header .tagline {
 .layout {
   flex: 1;
   display: grid;
+  align-items: stretch;
   grid-template-columns: 340px 1fr;
-  align-items:start;
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }
@@ -421,6 +423,7 @@ footer {
 .side,
 .paper-wrap {
   scrollbar-width: thin;
+  min-height: 0;
   /* Firefox */
   scrollbar-color: rgba(120, 113, 101, 0.35) transparent;
   /* Firefox */

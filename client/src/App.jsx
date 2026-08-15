@@ -441,7 +441,7 @@ export default function App() {
   }
 
   return (
-    <div className={`"app"`} >
+    <div className={"app"} >
       <header>
         <button className="hamburger-btn" aria-label="Open menu" onClick={() => setSidebarOpen(true)}>
           <span />
