@@ -90,6 +90,70 @@ async function translateChunkViaMyMemory(chunk) {
   }
 }
 
+// ---------------------------------------------------------------------
+// Protect names, contact info, and tech terms from translation.
+//
+// MyMemory doesn't recognize proper nouns (people's names, tech stack
+// names like "React.js") — it just guesses at a phonetic Hindi rendering,
+// which our Hinglish step then re-mangles a second time. The fix is to
+// swap these out for inert placeholder tokens BEFORE translation, and
+// swap the original text back in AFTER the Hinglish step (so nothing —
+// not MyMemory, not our own transliteration — ever touches them).
+// ---------------------------------------------------------------------
+
+const TECH_TERMS = [
+  'React.js', 'Next.js', 'Node.js', 'Express.js', 'Vue.js', 'Angular.js',
+  'MongoDB', 'PostgreSQL', 'MySQL', 'Tailwind CSS', 'Tailwind', 'Bootstrap',
+  'JavaScript', 'TypeScript', 'HTML5', 'HTML', 'CSS3', 'CSS', 'GraphQL',
+  'REST API', 'REST', 'JSON', 'Git', 'GitHub', 'LinkedIn', 'AWS', 'Docker',
+  'Kubernetes', 'Firebase', 'Vercel', 'Netlify', 'Redux', 'npm', 'API',
+  'UI/UX', 'UI', 'UX', 'SQL', 'Python', 'Java', 'C++'
+].sort((a, b) => b.length - a.length); // longest first so "React.js" wins over "React"
+
+function protectSpecialTerms(text) {
+  const protectedItems = [];
+  const stash = (match) => `[[${protectedItems.push(match) - 1}]]`;
+  let result = text;
+
+  // emails
+  result = result.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, stash);
+  // urls / bare domains with a path (linkedin.com/in/..., github.com/...)
+  result = result.replace(
+    /\b(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9-]+\.(?:com|in|org|net|io|dev|co|me)(?:\/[^\s|,]*)?/gi,
+    stash
+  );
+  // phone numbers (with optional country code)
+  result = result.replace(/\+?\d[\d\s-]{7,}\d/g, stash);
+
+  // known tech / product names
+  for (const term of TECH_TERMS) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), stash);
+  }
+
+  // proper-noun phrases — runs of 2+ Capitalized Words, e.g. person
+  // names ("Samridhi Gupta") and place names ("Gorakhpur, UP")
+  result = result.replace(/\b[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)+\b/g, stash);
+
+  // standalone ALL-CAPS codes/acronyms (course codes like "BCA503",
+  // abbreviations like "CN", "OS", "DBMS"). These are already Latin
+  // script in the source PDF — MyMemory leaves them untranslated, but
+  // without protection they'd still get run through the Hinglish
+  // letter-mangling step below (meant only for actual ITRANS output),
+  // e.g. "BCA" -> "bcaa" because that step blindly rewrites every
+  // capital A/I/U as if it were a transliterated Devanagari vowel.
+  result = result.replace(/\b[A-Z]{2,}[0-9]*\b/g, stash);
+
+  return { protectedText: result, protectedItems };
+}
+
+function restoreProtectedTerms(text, protectedItems) {
+  return text.replace(/\[\[\s*(\d+)\s*\]\]/g, (full, idx) => {
+    const item = protectedItems[Number(idx)];
+    return item !== undefined ? item : full;
+  });
+}
+
 // Common short function words where the inherent vowel IS pronounced —
 // don't strip these even though the rule below would normally apply.
 const KEEP_SCHWA = new Set([
@@ -97,6 +161,74 @@ const KEEP_SCHWA = new Set([
   'se', 'ko', 'ho', 'wo', 'ye', 'ab', 'sab', 'kya', 'aur', 'par', 'agar', 'jab',
   'tab', 'kab', 'kabhi', 'shayad', 'phir'
 ]);
+
+// ---------------------------------------------------------------------
+// Common English words borrowed into Hindi (written in Devanagari) that
+// should come back out in their normal English spelling, not a
+// letter-by-letter phonetic guess. Without this, "रिसीवर" (receiver)
+// becomes "riseevar" — technically a valid phonetic reading, but not
+// how anyone actually writes Hinglish. Add more pairs here as needed.
+// ---------------------------------------------------------------------
+const DEVANAGARI_LOANWORDS = [
+  ['डेटा', 'data'],
+  ['नेटवर्क्स', 'networks'],
+  ['नेटवर्क', 'network'],
+  ['कम्युनिकेशन', 'communication'],
+  ['रिसीवर', 'receiver'],
+  ['ट्रांसमीटर', 'transmitter'],
+  ['ट्रांसमिशन', 'transmission'],
+  ['कंप्यूटर', 'computer'],
+  ['सॉफ्टवेयर', 'software'],
+  ['हार्डवेयर', 'hardware'],
+  ['इंटरनेट', 'internet'],
+  ['सर्वर', 'server'],
+  ['प्रोटोकॉल', 'protocol'],
+  ['चैनल', 'channel'],
+  ['बैंडविड्थ', 'bandwidth'],
+  ['राउटर', 'router'],
+  ['स्विच', 'switch'],
+  ['केबल', 'cable'],
+  ['सिग्नल', 'signal'],
+  ['फ्रीक्वेंसी', 'frequency'],
+  ['मॉडेम', 'modem'],
+  ['सैटेलाइट', 'satellite'],
+  ['टेलीफोन', 'telephone'],
+  ['मोबाइल', 'mobile'],
+  ['डिवाइस', 'device'],
+  ['एप्लीकेशन', 'application'],
+  ['डेटाबेस', 'database'],
+  ['सिक्योरिटी', 'security'],
+  ['एन्क्रिप्शन', 'encryption'],
+  ['एल्गोरिदम', 'algorithm'],
+  ['प्रोग्रामिंग', 'programming'],
+  ['मेमोरी', 'memory'],
+  ['प्रोसेसर', 'processor'],
+  ['इंटरफेस', 'interface'],
+  ['फॉर्मेट', 'format'],
+  ['स्ट्रक्चर', 'structure'],
+  ['स्टैंडर्ड', 'standard'],
+  ['लेयर', 'layer'],
+  ['पैकेट', 'packet'],
+  ['एड्रेस', 'address'],
+  ['डोमेन', 'domain'],
+  ['ईमेल', 'email'],
+  ['इमेल', 'email']
+];
+
+// Swaps recognized Devanagari loanwords for their English spelling,
+// stashing into the SAME protectedItems array used for the pre-
+// translation pass so one restoreProtectedTerms() call at the end
+// unwinds everything. Must run AFTER MyMemory translation (the text
+// needs to be in Devanagari for these to match) and BEFORE toHinglish
+// (so the phonetic step never sees these words at all).
+function protectDevanagariLoanwords(text, protectedItems) {
+  let result = text;
+  for (const [devanagari, english] of DEVANAGARI_LOANWORDS) {
+    const pattern = new RegExp(`(?<![\\p{L}])${devanagari}(?![\\p{L}])`, 'gu');
+    result = result.replace(pattern, () => `[[${protectedItems.push(english) - 1}]]`);
+  }
+  return result;
+}
 
 function toHinglish(devanagariText) {
   const raw = transliterate(devanagariText, 'devanagari', 'itrans');
@@ -146,7 +278,8 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const chunks = splitIntoChunks(text, MAX_CHUNK_CHARS);
+    const { protectedText, protectedItems } = protectSpecialTerms(text);
+    const chunks = splitIntoChunks(protectedText, MAX_CHUNK_CHARS);
     const translatedChunks = [];
 
     for (const chunk of chunks) {
@@ -161,8 +294,11 @@ router.post('/', async (req, res) => {
     }
 
     if (targetLang === 'hinglish') {
+      finalText = protectDevanagariLoanwords(finalText, protectedItems);
       finalText = toHinglish(finalText);
     }
+
+    finalText = restoreProtectedTerms(finalText, protectedItems);
 
     res.json({ translatedText: finalText });
   } catch (err) {
